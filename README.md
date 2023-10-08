@@ -52,7 +52,7 @@ These instructions will help you set up the project on your local machine for de
 
 ### Prerequisites
 
-- Python 3.8 or higher
+- Python 3.10 or higher
 - Docker and Docker Compose
 - Virtual environment (optional, but recommended)
 
