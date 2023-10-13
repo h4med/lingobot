@@ -1,16 +1,13 @@
 # app/modules/user_management.py
 # User Management
-# DONE create_user(user_id, first_name, last_name=None, username=None)
-# DONE get_user(user_id)
-# Returns all settings/status of user
-# DONE update_user_credit_req_count(user_id, credit, req_count, usage, req_count_inc=1)
-# returns new_credit, new_req_count
+# TODO update_user_settings(user_id, level, model)
+# returns sucess
+# TODO get_user_settings(user_id)
+# returns user model and level
 # TODO increase_user_credit(user_id, credit_to_add)
 # returns new_credit
 # TODO update_user_model(user_id, model)
 # returns success
-# TODO get_user_settings(user_id)
-# returns user model and level
 # TODO update_user_status(connection, user_id, status)
 # delete_user(connection, user_id)
 # TODO log_user_activity(connection, user_id, activity_type, tokens, duration)

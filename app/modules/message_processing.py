@@ -2,7 +2,7 @@
 # User Message Management (app/modules/message_processing.py):
 #     DONE: add_conversation(user_id, message, sent_by):
 #     DONE: get_conversations(user_id, limit=20)
-#     TODO: delete_conversations(user_id)
+#     DONE: delete_conversations(user_id)
 
 import psycopg2
 from app.db_manager import connect_to_db
