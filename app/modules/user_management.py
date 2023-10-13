@@ -3,7 +3,7 @@
 # DONE create_user(user_id, first_name, last_name=None, username=None)
 # DONE get_user(user_id)
 # Returns all settings/status of user
-# TODO update_user_credit_req_count(user_id, credit, req_count, usage, req_count_inc=1)
+# DONE update_user_credit_req_count(user_id, credit, req_count, usage, req_count_inc=1)
 # returns new_credit, new_req_count
 # TODO increase_user_credit(user_id, credit_to_add)
 # returns new_credit
@@ -11,10 +11,10 @@
 # returns success
 # TODO get_user_settings(user_id)
 # returns user model and level
-# update_user_status(connection, user_id, status)
+# TODO update_user_status(connection, user_id, status)
 # delete_user(connection, user_id)
-# log_user_activity(connection, user_id, activity_type, tokens, duration)
-# get_user_logs(connection, user_id, start_date=None, end_date=None, activity_type=None)
+# TODO log_user_activity(connection, user_id, activity_type, tokens, duration)
+# TODO get_user_logs(connection, user_id, start_date=None, end_date=None, activity_type=None)
 # delete_user_logs(connection, user_id, timestamp=None)
 
 import psycopg2
@@ -138,3 +138,4 @@ def update_user_credit_req_count(user_id, credit, req_count, usage, req_count_in
         return {"success": False, "message": f"An error occurred: {e}"}
     finally:
         connection.close() 
+
