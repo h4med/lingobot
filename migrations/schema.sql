@@ -15,7 +15,6 @@ CREATE TYPE sent_by_enum AS ENUM (
 );
 
 
-
 CREATE TABLE lingo_users (
     user_id bigint PRIMARY KEY NOT NULL,
 	first_name character varying(255) NOT NULL,

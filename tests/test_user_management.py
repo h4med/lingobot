@@ -2,96 +2,82 @@
 
 import pytest
 import psycopg2
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, Mock
 
-from app.modules.user_management import create_user, get_user
+from app.modules import user_management
 from app.db_manager import connect_to_db
 
-# @pytest.mark.parametrize(
-#     "user_id, first_name, last_name, username, expected_success, expected_message",
-#     [
-#         (21, None, "Doe", "doe7", False, "Invalid input: first_name is required and must be a non-empty string."),  # None as first_name
-#         (22, "", "Doe", "doe8", False, "Invalid input: first_name is required and must be a non-empty string."),  # Empty string as first_name
-#         (23, "محمد", "Doe", "doe9", True, "User created successfully."),  # Persian character as first_name
-#         (24, "John", None, "doe10", True, "User created successfully."),  # None as last_name
-#         (25, "John", "", "doe11", True, "User created successfully."),  # Empty string as last_name
-#         (26, "John", "Doe", None, True, "User created successfully."),  # None as username
-#         (27, "John", "Doe", "", True, "User created successfully."),  # Empty string as username
-#     ]
-# )
-# def test_create_user(user_id, first_name, last_name, username, expected_success, expected_message):
-#     result = create_user(user_id, first_name, last_name, username)
-#     assert result["success"] == expected_success, result["message"]
-#     assert result["message"] == expected_message
+def test_create_user(monkeypatch):
+    mock_connection = MagicMock()
+    monkeypatch.setattr(user_management, 'connect_to_db', lambda: mock_connection)
 
-#     connection = connect_to_db()
-#     with connection.cursor() as cursor:
-#         cursor.execute("SELECT * FROM lingo_users WHERE user_id = %s;", (user_id,))
-#         user = cursor.fetchone()
+    mock_cursor = MagicMock()
+    mock_connection.cursor.return_value.__enter__.return_value = mock_cursor
 
-#     if expected_success:
-#         assert user is not None, f"User with user_id {user_id} not found."
-#         assert user[1] == first_name, f"Expected first name {first_name}, but got {user[1]}"
-#         assert user[2] == last_name, f"Expected last name {last_name}, but got {user[2]}"
-#         assert user[3] == username, f"Expected username {username}, but got {user[3]}"
-#     else:
-#         assert user is None, f"User with user_id {user_id} should not have been created."
+    # TODO: Add more test cases for all wiered possible situations
+    test_cases = [
+        (1, "John", None, "john_doe", True, "User created successfully."),
+        (2, None, "Doe", "null_john", False, "Invalid input: first_name is required and must be a non-empty string."),
+        (3, "", "Doe", "empty_john", False, "Invalid input: first_name is required and must be a non-empty string."),
+        (4, " محمد علی", "Doe", "persian_john", True, "User created successfully."),
+        (5, "حسنـــک #۵", "Doe", None, True, "User created successfully."),
+    ]
 
+    for user_id, first_name, last_name, username, expected_success, expected_message in test_cases:
+        result = user_management.create_user(user_id, first_name, last_name, username)
+        assert result["success"] == expected_success, f"Failed for user_id: {user_id}"
+        assert result["message"] == expected_message, f"Failed for user_id: {user_id}"
 
+        mock_cursor.reset_mock()
+        mock_connection.reset_mock()
 
-# @patch('app.db_manager.connect_to_db') 
-# def test_get_user(mock_connect):
-#     # Test case 1: User not found
-#     mock_connect.return_value = MagicMock()
-#     mock_connect.return_value.cursor.return_value.__enter__.return_value.fetchone.return_value = None
-#     result = get_user(123)
-#     assert result == {"success": False, "message": "User not found."}
+def test_get_user(monkeypatch):
+    mock_connection = MagicMock()
+    monkeypatch.setattr(user_management, 'connect_to_db', lambda: mock_connection)
 
-#     # # Test case 2: Database connection failed
-#     # mock_connect.return_value = None
-#     # result = get_user(123)
-#     # assert result == {"success": False, "message": "Database connection failed."}
+    mock_cursor = MagicMock()
+    mock_connection.cursor.return_value.__enter__.return_value = mock_cursor
 
+    # Test cases
+    test_cases = [
+        (1, True, "User found.", "John", "Doe", "john_doe", "ena", 50000, 2, "GPT-3.5", 0),
+        (None, False, "Invalid input: user_id is required.", None, None, None, None, None, None, None, None),
+        (2, False, "User not found.", None, None, None, None, None, None, None, None),
+        (3, True, "User found.", "Jane", "Smith", "jane_smith", "ena", 48000, 2, "GPT-3.5", 10),
+        (4, True, "User found.", "Mike", "Johnson", "mike_j", "dis", 45000, 3, "GPT-3.5", 20),
+        (5, True, "User found.", "Emily", "Clark", "emily_c", "zer", 42000, 1, "GPT-3.5", 30),
+        (6, True, "User found.", "محمد", "علی", "mohammad_a", "ena", 40000, 4, "GPT-3.5", 40),
+        (7, True, "User found.", "Anna", "Lee", "anna_l", "dis", 37000, 2, "GPT-3.5", 50),
+        (8, True, "User found.", "Chris", "Williams", "chris_w", "zer", 34000, 3, "GPT-3.5", 60),
+        (9, True, "User found.", "Olivia", "Taylor", "olivia_t", "ena", 31000, 1, "GPT-3.5", 70),
+        (10, True, "User found.", "Daniel", "Anderson", "daniel_a", "dis", 28000, 4, "GPT-3.5", 80),
+        (11, True, "User found.", "Sophia", "Martin", "sophia_m", "zer", 25000, 2, "GPT-3.5", 90),
+        (12, True, "User found.", "David", "Lewis", "david_l", "ena", 22000, 3, "GPT-3.5", 100),
+        (13, True, "User found.", "Mia", "Walker", "mia_w", "dis", 19000, 1, "GPT-3.5", 110),
+        (14, True, "User found.", "Matthew", "Harris", "matthew_h", "zer", 16000, 4, "GPT-3.5", 120),
+        (15, True, "User found.", "Abigail", "Robinson", "abigail_r", "ena", 13000, 2, "GPT-3.5", 130),
+        (16, True, "User found.", "James", "Young", "james_y", "dis", 10000, 3, "GPT-3.5", 140),
+        (17, True, "User found.", "Isabella", "King", "isabella_k", "zer", 7000, 1, "GPT-3.5", 150),
+        (18, True, "User found.", "Alex", "Scott", "alex_s", "ena", 4000, 4, "GPT-4.0", 160),
+        (19, True, "User found.", "Sarah", "Green", "sarah_g", "dis", 1000, 2, "GPT-3.5", 170),
+        (20, False, "User not found.", None, None, None, None, None, None, None, None)
+    ]
 
-#     # Test case 3: Successful user retrieval
-#     mock_connect.return_value = MagicMock()
-#     mock_connect.return_value.cursor.return_value.__enter__.return_value.fetchone.return_value = ('John', 'active', '5', 'model1')
-#     result = get_user(123)
-#     assert result == {
-#         "success": True, 
-#         "message": "User found.", 
-#         "first_name": 'John', 
-#         "status": 'active', 
-#         "level": '5', 
-#         "model": 'model1'
-#     }
+    for user_id, expected_success, expected_message, first_name, last_name, username, status, credit, level, model, request_count in test_cases:
+        mock_cursor.fetchone.return_value = None if expected_success is False else (first_name, last_name, username, status, credit, level, model, request_count)
+        result = user_management.get_user(user_id)
+        assert result["success"] == expected_success, f"Failed for user_id: {user_id}"
+        assert result["message"] == expected_message, f"Failed for user_id: {user_id}"
 
-#     # Test case 4: psycopg2 Error
-#     mock_connect.return_value = MagicMock()
-#     mock_connect.return_value.cursor.side_effect = psycopg2.Error("Database error")
-#     result = get_user('123')
-#     assert result["success"] == False
-#     assert "An error occurred" in result["message"]
+        if expected_success:
+            assert result["first_name"] == first_name
+            assert result["last_name"] == last_name
+            assert result["username"] == username
+            assert result["status"] == status
+            assert result["credit"] == credit
+            assert result["level"] == level
+            assert result["model"] == model
+            assert result["request_count"] == request_count
 
-
-def test_get_user():
-    # Test case 1: Invalid user_id
-    result = get_user(None)
-    assert result == {"success": False, "message": "Invalid input: user_id is required."}
-
-    # Test case 2: User not found
-    result = get_user(123)
-    assert result == {"success": False, "message": "User not found."}
-
-    # Test case 3: Successful user retrieval
-    # You need to ensure that this user_id exists in your test database
-    result = get_user(2)  
-    assert result["success"] == True
-    assert "User found." in result["message"]
-
-    # Test case 4: psycopg2 Error
-    # This can be tricky to test because it requires an error to occur in the psycopg2 library.
-    # One way to simulate this could be to temporarily modify your get_user function to raise an error when a specific user_id is used.
-    result = get_user('error_user_id')
-    assert result["success"] == False
-    assert "An error occurred" in result["message"]
+        mock_cursor.reset_mock()
+        mock_connection.reset_mock()

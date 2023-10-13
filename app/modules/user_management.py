@@ -21,7 +21,6 @@ import psycopg2
 from app.db_manager import connect_to_db
 
 def create_user(user_id, first_name, last_name=None, username=None):
-    # Input validation
     if not first_name or not isinstance(first_name, str):
         return {"success": False, "message": "Invalid input: first_name is required and must be a non-empty string."}
     
@@ -61,7 +60,7 @@ def get_user(user_id):
     try:
         with connection.cursor() as cursor:
             query = """
-                SELECT first_name, status, credit, level, model, request_count 
+                SELECT first_name, last_name, username, status, credit, level, model, request_count 
                 FROM lingo_users 
                 WHERE user_id = %s;
             """
@@ -75,11 +74,13 @@ def get_user(user_id):
                     "success": True, 
                     "message": "User found.", 
                     "first_name": result[0], 
-                    "status": result[1], 
-                    "credit": result[2], 
-                    "level": result[3], 
-                    "model": result[4],
-                    "request_count": result[5]
+                    "last_name": result[1], 
+                    "username": result[2], 
+                    "status": result[3], 
+                    "credit": result[4], 
+                    "level": result[5], 
+                    "model": result[6],
+                    "request_count": result[7]
                 }
     except psycopg2.Error as e:
         connection.rollback()
