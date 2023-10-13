@@ -81,3 +81,47 @@ def test_get_user(monkeypatch):
 
         mock_cursor.reset_mock()
         mock_connection.reset_mock()
+
+def test_update_user_credit_req_count(monkeypatch):
+    mock_connection = MagicMock()
+    monkeypatch.setattr(user_management, 'connect_to_db', lambda: mock_connection)
+
+    mock_cursor = MagicMock()
+    mock_connection.cursor.return_value.__enter__.return_value = mock_cursor
+    
+    #update_user_credit_req_count(user_id, credit, req_count, usage, req_count_inc=1)
+    test_cases = [
+        (1, 50000, 0, 1000, 1, True, "User credit and req count updated.", 49000, 1),
+        (None, 50000, 0, 1000, 1, False, "Invalid input: user_id is required.", None, None),
+        (2, -50000, 0, 1000, 1, False, "Invalid input: credit must be a non-negative integer.", None, None),
+        (3, 50000, -1, 1000, 1, False, "Invalid input: req_count must be a non-negative integer.", None, None),
+        (4, 50000, 0, -1000, 1, False, "Invalid input: usage must be a non-negative integer.", None, None),
+        (5, 50000, 0, 1000, -1, False, "Invalid input: req_count_inc must be a non-negative integer.", None, None),
+        (6, 50000, 0, 1000, 1, True, "User credit and req count updated.", 49000, 1),
+        (7, 1000, 0, 1000, 1, True, "User credit and req count updated.", 0, 1),
+        (8, 1000, 0, 2000, 1, True, "User credit and req count updated.", 0, 1),
+        (9, 0, 0, 0, 1, True, "User credit and req count updated.", 0, 1),
+        (10, 50000, 10, 1000, 1, True, "User credit and req count updated.", 49000, 11),
+        (11, 50000, 10, 50000, 1, True, "User credit and req count updated.", 0, 11),
+        (12, 50000, 10, 49999, 1, True, "User credit and req count updated.", 1, 11),
+        (13, 1, 10, 1, 1, True, "User credit and req count updated.", 0, 11),
+        (14, 1, 10, 2, 1, True, "User credit and req count updated.", 0, 11),
+        (15, 50000, 0, 0, 1, True, "User credit and req count updated.", 50000, 1),
+        (16, 50000, 0, 50000, 1, True, "User credit and req count updated.", 0, 1),
+        (17, 50000, 0, 49999, 1, True, "User credit and req count updated.", 1, 1),
+        (18, 0, 0, 0, 10, True, "User credit and req count updated.", 0, 10),
+        (19, 100, 10, 100, 10, True, "User credit and req count updated.", 0, 20),
+        (20, 100, 10, 101, 10, True, "User credit and req count updated.", 0, 20),
+    ]
+
+    for user_id, credit, req_count, usage, req_count_inc, expected_success, expected_message, new_credit, new_req_count in test_cases:
+        result = user_management.update_user_credit_req_count(user_id, credit, req_count, usage, req_count_inc)
+        assert result["success"] == expected_success
+        assert result["message"] == expected_message
+
+        if expected_success:
+            assert result["new_credit"] == new_credit
+            assert result["new_req_count"] == new_req_count
+
+        mock_cursor.reset_mock()
+        mock_connection.reset_mock()

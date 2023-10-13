@@ -1,10 +1,10 @@
 # app/modules/user_management.py
 # User Management
 # DONE create_user(user_id, first_name, last_name=None, username=None)
-# TODO get_user(user_id)
+# DONE get_user(user_id)
 # Returns all settings/status of user
-# TODO update_user_credit_rq_count(user_id, credit, rq_count, credit_usage, rq_count_inc=1)
-# returns new_credit, new_rq_count
+# TODO update_user_credit_req_count(user_id, credit, req_count, usage, req_count_inc=1)
+# returns new_credit, new_req_count
 # TODO increase_user_credit(user_id, credit_to_add)
 # returns new_credit
 # TODO update_user_model(user_id, model)
@@ -87,3 +87,54 @@ def get_user(user_id):
         return {"success": False, "message": f"An error occurred: {e}"}
     finally:
         connection.close()
+
+def update_user_credit_req_count(user_id, credit, req_count, usage, req_count_inc=1):
+
+    if not user_id:
+        return {"success": False, "message": "Invalid input: user_id is required."}
+    
+    if not isinstance(credit, int) or credit < 0:
+        return {"success": False, "message": "Invalid input: credit must be a non-negative integer."}
+
+    if not isinstance(req_count, int) or req_count < 0:
+        return {"success": False, "message": "Invalid input: req_count must be a non-negative integer."}
+
+    if not isinstance(usage, int) or usage < 0:
+        return {"success": False, "message": "Invalid input: usage must be a non-negative integer."}
+
+    if not isinstance(req_count_inc, int) or req_count_inc < 0:
+        return {"success": False, "message": "Invalid input: req_count_inc must be a non-negative integer."}
+    
+    connection = connect_to_db()
+    if connection is None:
+        return {"success": False, "message": "Database connection failed."}
+    
+    try:
+        with connection.cursor() as cursor:
+            new_credit = 0
+            new_status = 'zer'
+            if credit > usage:
+                new_credit = credit - usage
+                new_status = 'ena'
+                    
+            new_req_count = req_count + req_count_inc            
+            query = """
+                UPDATE lingo_users SET 
+                request_count = %s, 
+                credit = %s, 
+                status = %s 
+                WHERE user_id = %s
+            """
+            cursor.execute(query, (new_req_count, new_credit, new_status, user_id))
+        connection.commit()
+        return {
+            "success": True, 
+            "message": "User credit and req count updated.", 
+            "new_credit": new_credit, 
+            "new_req_count": new_req_count
+                }
+    except psycopg2.Error as e:
+        connection.rollback()
+        return {"success": False, "message": f"An error occurred: {e}"}
+    finally:
+        connection.close() 
