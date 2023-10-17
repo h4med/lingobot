@@ -29,7 +29,8 @@ from telegram.ext import (
 from telegram.constants import ParseMode
 
 ### app imports
-from app.modules.command_handling import start, settings_callback, send_typing_action
+from app.modules.command_handling import start, send_typing_action
+# from .modules.command_handling 
 
 
 ### logging settings
@@ -95,14 +96,14 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
             chat_id=ADMIN_TG_USER_ID, text=chunk, parse_mode=ParseMode.HTML
         )
 
-async def post_init(application: Application):
-    await application.bot.set_my_commands([
-        BotCommand("/help", "Help"),
-        BotCommand("/image", "Image creation"),
-        BotCommand("/reset", "Clear history"),
-        BotCommand("/balance", "Available credit"),
-        BotCommand("/settings", "Settings"),
-    ]) 
+# FIXME commands should be modified accordingly
+# async def post_init(application: Application):
+#     await application.bot.set_my_commands([
+#         BotCommand("/help", "Help"),
+#         BotCommand("/new", "New Conversation"),
+#         BotCommand("/balance", "Available credit"),
+#         BotCommand("/settings", "Settings"),
+#     ]) 
 
 
 def main():
@@ -110,26 +111,33 @@ def main():
         ApplicationBuilder()
         .token(os.environ['TELEGRAM_BOT_TOKEN'])
         .concurrent_updates(True)
-        .post_init(post_init)
+        # .post_init(post_init) #TODO add after post_init function defined
         .build()
     )
-    
-    # Get the dispatcher to register handlers
-    dp = updater.dispatcher
+    application.bot_data['logger'] = logger_telegram
 
-    # Register command handlers
-    dp.add_handler(CommandHandler('start', start))
-    dp.add_handler(CallbackQueryHandler(settings_callback))
+    start_handler = CommandHandler('start', start)
+    # help_handler = CommandHandler('help', get_help) # TODO add help
+    # reset_handler = CommandHandler('reset', get_reset_hist) # TODO
+    # balance_handler = CommandHandler('balance', get_balance) # TODO
+    # settings_handler = CommandHandler('settings', settings_callback)
 
-    # Register message handlers
-    dp.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_text_message))
-    dp.add_handler(MessageHandler(Filters.voice, handle_voice_message))
+    text_message_handler = MessageHandler(
+        filters.TEXT & (~filters.COMMAND), handle_text_message
+    )
 
-    # Start the bot
-    updater.start_polling()
+    voice_handler = MessageHandler(filters.VOICE | filters.AUDIO , handle_voice_message)
 
-    # Run the bot until the user sends a signal to stop
-    updater.idle()
+    application.add_handler(start_handler)
+    # application.add_handler(settings_handler)
+
+    application.add_handler(text_message_handler)
+    application.add_handler(voice_handler)
+
+    application.add_error_handler(error_handler)
+
+    logger.info("Running Lingobot Telegram BOT")
+    application.run_polling()
 
 if __name__ == '__main__':
     main()

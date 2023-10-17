@@ -1,11 +1,20 @@
 # app/modules/command_handling.py
 from functools import wraps
 
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import CallbackContext
-from telegram.constants import ChatAction
+from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
+
+from telegram.ext import (
+    Application,
+    CommandHandler,
+    ContextTypes,
+    ConversationHandler,
+    MessageHandler,
+    filters,
+)
+from telegram.constants import ChatAction, ParseMode
 
 from app.modules.user_management import create_user
+from app.messages.responses import start_message
 
 def send_action(action):
     def decorator(func):
@@ -23,26 +32,33 @@ send_typing_action = send_action(ChatAction.TYPING)
 send_photo_action = send_action(ChatAction.UPLOAD_PHOTO)
 send_voice_action = send_action(ChatAction.RECORD_VOICE)
 
-def start(update: Update, context: CallbackContext):
-    user_id = update.effective_user.id
-    response = create_user(user_id)
-    update.message.reply_text(response['message'])
-    ask_for_settings(update, context)
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE, logger):
+    user = update.effective_useradded_to_attachment_menu    
+    logger = context.bot_data.get('logger')
+    logger.info(f'Received /start first_name: {user.first_name}, last_name: {user.last_name}, username: {user.username}, ID: {user.id}')
 
-def ask_for_settings(update: Update, context: CallbackContext):
-    keyboard = [
-        [InlineKeyboardButton("Set Level", callback_data='set_level'),
-         InlineKeyboardButton("Set Model", callback_data='set_model')]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    update.message.reply_text('Please set your preferences:', reply_markup=reply_markup)
+    response = create_user(user.id, user.first_name, user.last_name, user.username)
 
-def settings_callback(update: Update, context: CallbackContext):
-    query = update.callback_query
-    query.answer()
-    if query.data == 'set_level':
-        # Handle level setting
-        pass  # Implement your code
-    elif query.data == 'set_model':
-        # Handle model setting
-        pass  # Implement your code
+    if response["success"]:
+        message = start_message
+        logger.info(f'User: {user.first_name} with ID: {user.id} successfully added to users')
+    else:
+        message = response["message"]
+        logger.error(f'Adding New User: {user.first_name} with ID: {user.id} to users. Error: {response["message"]}')
+
+    await context.bot.send_message(
+        chat_id=user.id, 
+        text=message,
+        parse_mode=ParseMode.HTML
+        )
+
+
+# def settings_callback(update: Update, context: CallbackContext):
+#     query = update.callback_query
+#     query.answer()
+#     if query.data == 'set_level':
+#         # Handle level setting
+#         pass  # Implement your code
+#     elif query.data == 'set_model':
+#         # Handle model setting
+#         pass  # Implement your code
