@@ -27,7 +27,16 @@ def create_user(user_id, first_name, last_name=None, username=None):
 
     try:
         with connection.cursor() as cursor:
-            query = """
+            # Check if user already exists
+            check_query = """
+                SELECT 1 FROM lingo_users WHERE user_id = %s;
+            """
+            cursor.execute(check_query, (user_id,))
+            if cursor.fetchone():
+                return {"success": False, "message": "User already exists"}
+
+            # If not, proceed to insert new user
+            insert_query = """
                 INSERT INTO lingo_users (
                     user_id, 
                     first_name, 
@@ -37,12 +46,12 @@ def create_user(user_id, first_name, last_name=None, username=None):
                 ) 
                 VALUES (%s, %s, %s, %s, NOW());
             """
-            cursor.execute(query, (user_id, first_name, last_name, username))
+            cursor.execute(insert_query, (user_id, first_name, last_name, username))
         connection.commit()
         return {"success": True, "message": "User created successfully."}
     except psycopg2.Error as e:
         connection.rollback()
-        return {"success": False, "message": f"An error occurred: {e}"}
+        return {"success": False, "message": f"app/modules/user_management.py - create_user() - An error occurred: {e}"}
     finally:
         connection.close()
 

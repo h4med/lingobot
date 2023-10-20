@@ -1,7 +1,7 @@
 # app/bot.py
 
 ### General import
-import logging
+
 import os
 from dotenv import load_dotenv
 import traceback
@@ -10,6 +10,7 @@ import json
 import openai
 
 ### Telegram import
+import telegram
 from telegram import (
     Update,
     BotCommand,
@@ -30,31 +31,14 @@ from telegram.constants import ParseMode
 
 ### app imports
 from app.modules.command_handling import start, send_typing_action
-# from .modules.command_handling 
 
 
 ### logging settings
-logger_telegram = logging.getLogger('telegram')
-logger_openai = logging.getLogger('openai')
-logger = logging.getLogger(__name__)
-logger.propagate = False
-logger_telegram.propagate = False
-logger_openai.propagate = False
+import logging
+from app.log_config import configure_logging
 
-ch = logging.StreamHandler()
-ch.setLevel(logging.DEBUG)
-ch_etc = logging.StreamHandler()
-ch_etc.setLevel(logging.INFO)
-
-formatter = logging.Formatter('%(asctime)s [%(filename)s:%(lineno)d] - %(levelname)s - %(message)s')
-formatter_etc = logging.Formatter('%(asctime)s [%(name)s] - %(levelname)s - %(message)s')
-
-ch.setFormatter(formatter)
-ch_etc.setFormatter(formatter_etc)
-
-logger.addHandler(ch)
-logger_telegram.addHandler(ch_etc)
-logger_openai.addHandler(ch_etc)
+my_logger = configure_logging(__name__)
+logger_telegram = configure_logging('telegram', False, level=logging.INFO)
 
 ### load local envs
 load_dotenv()
@@ -114,7 +98,6 @@ def main():
         # .post_init(post_init) #TODO add after post_init function defined
         .build()
     )
-    application.bot_data['logger'] = logger_telegram
 
     start_handler = CommandHandler('start', start)
     # help_handler = CommandHandler('help', get_help) # TODO add help
@@ -136,7 +119,7 @@ def main():
 
     application.add_error_handler(error_handler)
 
-    logger.info("Running Lingobot Telegram BOT")
+    my_logger.info("Running Lingobot Telegram BOT")
     application.run_polling()
 
 if __name__ == '__main__':
