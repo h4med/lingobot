@@ -17,13 +17,13 @@
 import psycopg2
 from app.db_manager import connect_to_db
 
-def create_user(user_id, first_name, last_name=None, username=None):
-    if not first_name or not isinstance(first_name, str):
-        return {"success": False, "message": "Invalid input: first_name is required and must be a non-empty string."}
+def create_user(user_id, first_name, is_bot, last_name=None, username=None):
+    if not first_name or not isinstance(first_name, str) or not isinstance(is_bot, bool):
+        return {"success": False, "message": "app/modules/user_management.py - create_user() - Invalid input"}
     
     connection = connect_to_db()
     if connection is None:
-        return {"success": False, "message": "Database connection failed."}
+        return {"success": False, "message": "app/modules/user_management.py - create_user() - Database connection failed."}
 
     try:
         with connection.cursor() as cursor:
@@ -42,11 +42,12 @@ def create_user(user_id, first_name, last_name=None, username=None):
                     first_name, 
                     last_name, 
                     username, 
+                    is_bot,
                     joined_at
                 ) 
-                VALUES (%s, %s, %s, %s, NOW());
+                VALUES (%s, %s, %s, %s, %s, NOW());
             """
-            cursor.execute(insert_query, (user_id, first_name, last_name, username))
+            cursor.execute(insert_query, (user_id, first_name, last_name, username, is_bot))
         connection.commit()
         return {"success": True, "message": "User created successfully."}
     except psycopg2.Error as e:
@@ -66,7 +67,7 @@ def get_user(user_id):
     try:
         with connection.cursor() as cursor:
             query = """
-                SELECT first_name, last_name, username, status, credit, level, model, request_count 
+                SELECT first_name, last_name, username, is_bot, status, credit, level, model, request_count 
                 FROM lingo_users 
                 WHERE user_id = %s;
             """
@@ -82,11 +83,12 @@ def get_user(user_id):
                     "first_name": result[0], 
                     "last_name": result[1], 
                     "username": result[2], 
-                    "status": result[3], 
-                    "credit": result[4], 
-                    "level": result[5], 
-                    "model": result[6],
-                    "request_count": result[7]
+                    "is_bot": result[3], 
+                    "status": result[4], 
+                    "credit": result[5], 
+                    "level": result[6], 
+                    "model": result[7],
+                    "request_count": result[8]
                 }
     except psycopg2.Error as e:
         connection.rollback()

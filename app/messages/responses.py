@@ -18,15 +18,17 @@ Instructions guide:
 start_message = """👋 Hello, Dear <b>{name}</b>,
 Welcome to <b>RealSpeak</b>, your personal AI guide for better English.
 Go to /settings to choose your English level, and press /new to begin chatting. You can text or send voice messages.
+
 Need help? Use /help for more information.
 
 Let's start practicing your speaking skills 🤗
 
 @RealSpeakBot"""
 
-start_message_back = """👋 Wellcome back Dear <b>{name}</b>,
+start_message_back = """👋 Wellcome back dear <b>{name}</b>,
 As you know I am <b>RealSpeak</b>, your personal AI guide for better English.
 Go to /settings to choose your English level, and press /new to begin chatting. You can text or send voice messages.
+
 Need help? Use /help for more information.
 
 Let's start practicing your speaking skills 🤗

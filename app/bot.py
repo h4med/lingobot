@@ -58,7 +58,7 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
 
-    logger.error("Telegram BOT Exception while handling an update:", exc_info=context.error)
+    my_logger.error("Telegram BOT Exception while handling an update:", exc_info=context.error)
 
     tb_list = traceback.format_exception(None, context.error, context.error.__traceback__)
     tb_string = "".join(tb_list)

@@ -16,7 +16,7 @@ from telegram.ext import (
 )
 from telegram.constants import ChatAction, ParseMode
 
-from app.modules.user_management import create_user
+from app.modules.user_management import create_user, get_user
 from app.messages.responses import start_message, start_message_back
 from app.log_config import configure_logging
 
@@ -40,9 +40,9 @@ send_voice_action = send_action(ChatAction.RECORD_VOICE)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user 
-    logger.info(f'Received /start first_name: {user.first_name}, last_name: {user.last_name}, username: {user.username}, ID: {user.id}')
+    logger.info(f'Received /start first_name: {user.first_name}, last_name: {user.last_name}, username: {user.username}, ID: {user.id}, is_bot: {user.is_bot}')
 
-    response = create_user(user.id, user.first_name, user.last_name, user.username)
+    response = create_user(user.id, user.first_name, user.is_bot, user.last_name, user.username)
 
     if response["success"]:
         message = start_message.format(name=user.first_name)
@@ -60,3 +60,20 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text=message,
         parse_mode=ParseMode.HTML
         )
+
+async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.edited_message or not update.message or update.message.via_bot:
+        return
+    
+    user_id = update.effective_user.id
+    logger.info(f"Received Text Message from User: {update.message.chat.first_name} with ID: {user_id}")
+    result = get_user(user_id)
+    if result["success"]:
+        first_name = result["first_name"]
+        is_bot = result["is_bot"]
+        status = result["status"]
+        credit = result["credit"]
+        level = result["level"]
+        request_count  = result["request_count"]
+        
+
