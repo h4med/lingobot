@@ -16,8 +16,8 @@ def add_conversation(user_id, message, sent_by):
 
     if not message or not isinstance(message, str):
         return {"success": False, "message": "Invalid input: message is required and must be a non-empty string."}
-    if sent_by not in ['user', 'bot']:
-        return {"success": False, "message": "Invalid input: sent_by must be either 'user' or 'bot'."}
+    if sent_by not in ['user', 'system', 'assistant']:
+        return {"success": False, "message": "Invalid input: sent_by must be either 'user' or 'assistant' or 'system'."}
 
     connection = connect_to_db()
     if connection is None:

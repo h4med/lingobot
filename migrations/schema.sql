@@ -11,9 +11,9 @@ CREATE TYPE user_role_enum AS ENUM (
 
 CREATE TYPE sent_by_enum AS ENUM (
     'user',
-    'bot'
+    'system',
+    'assistant'
 );
-
 
 CREATE TABLE lingo_users (
     user_id bigint PRIMARY KEY NOT NULL,

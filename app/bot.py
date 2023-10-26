@@ -30,7 +30,7 @@ from telegram.ext import (
 from telegram.constants import ParseMode
 
 ### app imports
-from app.modules.command_handling import start, send_typing_action
+from app.modules.command_handling import start, send_typing_action, handle_new_conv_command
 
 
 ### logging settings
@@ -100,6 +100,7 @@ def main():
     )
 
     start_handler = CommandHandler('start', start)
+    new_conv_handler = CommandHandler('new', handle_new_conv_command)
     # help_handler = CommandHandler('help', get_help) # TODO add help
     # reset_handler = CommandHandler('reset', get_reset_hist) # TODO
     # balance_handler = CommandHandler('balance', get_balance) # TODO
@@ -112,6 +113,7 @@ def main():
     voice_handler = MessageHandler(filters.VOICE | filters.AUDIO , handle_voice_message)
 
     application.add_handler(start_handler)
+    application.add_handler(new_conv_handler)
     # application.add_handler(settings_handler)
 
     application.add_handler(text_message_handler)

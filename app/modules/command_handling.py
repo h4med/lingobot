@@ -1,5 +1,7 @@
 # app/modules/command_handling.py
 
+import os
+from dotenv import load_dotenv
 from functools import wraps
 
 import telegram
@@ -16,11 +18,21 @@ from telegram.ext import (
 )
 from telegram.constants import ChatAction, ParseMode
 
-from app.modules.user_management import create_user, get_user
+from app.modules.user_management import create_user, get_user, update_user_credit_req_count
+from app.modules.message_processing import delete_conversations, add_conversation
+from app.modules.openai_api import create_chat_completion
 from app.messages.responses import start_message, start_message_back
+from app.messages.prompts import system_prompt
 from app.log_config import configure_logging
+from app.helpers.utils import check_user_status, log_and_return
 
 logger = configure_logging(__name__)
+
+load_dotenv()
+
+# openai.api_key = os.environ['OPENAI_API_KEY']
+max_token_chat = int(os.environ['CHATCOMPLETION_MAX_TOKEN'])
+max_token_chat_free = int(os.environ['CHATCOMPLETION_MAX_TOKEN_FREE'])
 
 def send_action(action):
     def decorator(func):
@@ -61,19 +73,58 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode=ParseMode.HTML
         )
 
-async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+@send_typing_action
+async def handle_new_conv_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.edited_message or not update.message or update.message.via_bot:
         return
-    
-    user_id = update.effective_user.id
-    logger.info(f"Received Text Message from User: {update.message.chat.first_name} with ID: {user_id}")
-    result = get_user(user_id)
-    if result["success"]:
-        first_name = result["first_name"]
-        is_bot = result["is_bot"]
-        status = result["status"]
-        credit = result["credit"]
-        level = result["level"]
-        request_count  = result["request_count"]
-        
 
+    user = update.effective_user
+    logger.info(f"Received New Conversation Command from User: {user.first_name} with ID: {user.id}")
+
+    user_data = get_user(user.id)
+
+    if not user_data["success"]:
+        await context.bot.send_message(chat_id=user.id, text=log_and_return("get_user", user, user_data), parse_mode=ParseMode.HTML)
+        return
+
+    status_result = check_user_status(
+        user_status=user_data["status"],
+        is_bot=user_data["is_bot"],
+        req_count=user_data["request_count"]
+    )
+    if not status_result["success"]:
+        await context.bot.send_message(chat_id=user.id, text=log_and_return("check_user_status", user, status_result), parse_mode=ParseMode.HTML)
+        return
+
+    deletion_result = delete_conversations(user.id)
+    if not deletion_result["success"]:
+        await context.bot.send_message(chat_id=user.id, text=log_and_return("delete_conversations", user, deletion_result), parse_mode=ParseMode.HTML)
+        return
+
+    prompt = system_prompt.format(user_name=user_data["first_name"], user_skill_level=user_data["level"])
+
+    add_result = add_conversation(user.id, prompt, "system")
+    if not add_result["success"]:
+        await context.bot.send_message(chat_id=user.id, text=log_and_return("add_conversation", user, add_result), parse_mode=ParseMode.HTML)
+        return
+
+    max_token = max_token_chat_free if user_data["status"] == 'zer' else max_token_chat
+
+    query = [
+        {"role": "system", "content": prompt},
+        {"role": "user", "content": "Hi, what's up?"}
+    ]
+
+    chat_result = await create_chat_completion(query, max_token)
+    if not chat_result["success"]:
+        await context.bot.send_message(chat_id=user.id, text=log_and_return("create_chat_completion", user, chat_result), parse_mode=ParseMode.HTML)
+        return
+
+    # logger.info(f'create_chat_completion_result: {user.first_name} with ID: {user.id}. message: {chat_result["content"]}\nToken; {chat_result["total_tokens"]}')
+
+    credit_update_result = update_user_credit_req_count(user.id, user_data["credit"], user_data["request_count"], chat_result["total_tokens"])
+    if not credit_update_result["success"]:
+        await context.bot.send_message(chat_id=user.id, text=log_and_return("update_user_credit_req_count", user, credit_update_result), parse_mode=ParseMode.HTML)
+        return
+
+    await context.bot.send_message(chat_id=user.id, text=chat_result["content"], parse_mode=ParseMode.HTML)

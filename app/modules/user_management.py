@@ -77,6 +77,14 @@ def get_user(user_id):
             if result is None:
                 return {"success": False, "message": "User not found."}
             else:
+                level_map = {
+                    "1": "Beginner",
+                    "2": "Elementary",
+                    "3": "Intermediate",
+                    "4": "Upper-Intermediate",
+                    "5": "Advanced",
+                }
+                user_skill_level=level_map.get(str(result[6]), "Intermediate")
                 return {
                     "success": True, 
                     "message": "User found.", 
@@ -86,7 +94,7 @@ def get_user(user_id):
                     "is_bot": result[3], 
                     "status": result[4], 
                     "credit": result[5], 
-                    "level": result[6], 
+                    "level": user_skill_level, 
                     "model": result[7],
                     "request_count": result[8]
                 }
