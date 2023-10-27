@@ -24,7 +24,6 @@ def add_conversation(user_id, message, sent_by):
         return {"success": False, "message": "Database connection failed."}
 
     try:
-        # Inserting conversation record
         with connection.cursor() as cursor:
             query = """
                 INSERT INTO lingo_conversations (
@@ -60,16 +59,16 @@ def get_conversations(user_id, limit=20):
                 SELECT message, sent_by, timestamp
                 FROM lingo_conversations
                 WHERE user_id = %s
-                ORDER BY timestamp DESC
+                ORDER BY timestamp ASC
                 LIMIT %s;
             """
             cursor.execute(query, (user_id, limit))
             conversations = cursor.fetchall()
         
         result = [{
-            "message": conversation[0],
-            "sent_by": conversation[1],
-            "timestamp": conversation[2]
+            "role": conversation[1],
+            "content": conversation[0]
+            # "timestamp": conversation[2]
         } for conversation in conversations]
 
         return {"success": True, "conversations": result}

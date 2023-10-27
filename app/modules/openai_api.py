@@ -13,7 +13,6 @@ from app.log_config import configure_logging
 logger = configure_logging(__name__)
 
 async def create_chat_completion(messages_list, max_token, model="gpt-3.5-turbo-16k", temperature=0.3):
-
     try:
         response = await openai.ChatCompletion.acreate(
             model=model,
@@ -40,3 +39,20 @@ async def create_chat_completion(messages_list, max_token, model="gpt-3.5-turbo-
     except Exception as e:
         logger.error(f"Exception Error: {e}")
         return {"success": False, "message": f"An Exception occurred: {e}"}
+    
+
+def count_tokens(messages) -> int:
+
+    encoding = tiktoken.get_encoding("cl100k_base")
+    tokens_per_message = 3
+    tokens_per_name = 1
+    num_tokens = 0
+    for message in messages:
+        num_tokens += tokens_per_message
+        for key, value in message.items():
+            if value is not None:
+                num_tokens += len(encoding.encode(str(value)))
+            if key == "name":
+                num_tokens += tokens_per_name
+    num_tokens += 3  # every reply is primed with <|start|>assistant<|message|>
+    return num_tokens

@@ -17,8 +17,8 @@ from telegram.ext import (
 from telegram.constants import ChatAction, ParseMode
 
 from app.modules.user_management import create_user, get_user, update_user_credit_req_count, update_user_settings
-from app.modules.message_processing import delete_conversations, add_conversation
-from app.modules.openai_api import create_chat_completion
+from app.modules.message_processing import delete_conversations, add_conversation, get_conversations
+from app.modules.openai_api import create_chat_completion, count_tokens
 from app.messages.responses import start_message, start_message_back
 from app.messages.prompts import system_prompt, user_new_conv_start
 from app.messages.menu import settings_main_menu, settings_level_list_menu
@@ -151,7 +151,6 @@ async def handle_settings_command(update: Update, context: ContextTypes.DEFAULT_
 
 
 async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
     query = update.callback_query
     await query.answer()
 
@@ -191,3 +190,69 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif query.data == 'cancel':
         await query.edit_message_text(text="Cancelled")   
+
+@send_typing_action    
+async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.edited_message or not update.message or update.message.via_bot:
+        return
+
+    user = update.effective_user
+    logger.info(f"Received New Text Message User: {user.first_name} with ID: {user.id}")
+
+    user_data = get_user(user.id)
+
+    if not user_data["success"]:
+        await context.bot.send_message(chat_id=user.id, text=log_and_return("get_user", user, user_data), parse_mode=ParseMode.HTML)
+        return
+
+    status_result = check_user_status(
+        user_status=user_data["status"],
+        is_bot=user_data["is_bot"],
+        req_count=user_data["request_count"]
+    )
+    if not status_result["success"]:
+        await context.bot.send_message(chat_id=user.id, text=log_and_return("check_user_status", user, status_result), parse_mode=ParseMode.HTML)
+        return
+    
+    user_text = update.message.text
+    user_text = user_text.strip()
+
+    add_result = add_conversation(user.id, user_text, "user")
+    if not add_result["success"]:
+        await context.bot.send_message(chat_id=user.id, text=log_and_return("add_conversation", user, add_result), parse_mode=ParseMode.HTML)
+        return
+    
+    conversations_result = get_conversations(user.id)
+    if not conversations_result["success"]:
+        await context.bot.send_message(chat_id=user.id, text=log_and_return("get_conversations", user, conversations_result), parse_mode=ParseMode.HTML)
+        return
+    #FIXME: check if there is no system promp then add it
+    #TODO: Add summary = await summarize_user_conversations(user.id)
+    # logger.info(f'conversations_result: {conversations_result["conversations"]}')
+    tokens_count = count_tokens(conversations_result["conversations"])
+    # logger.info(f'tokens_count: {tokens_count}')
+
+    max_token = max_token_chat_free if user_data["status"] == 'zer' else max_token_chat
+
+    query = conversations_result["conversations"]
+
+    chat_result = await create_chat_completion(query, max_token)
+    if not chat_result["success"]:
+        await context.bot.send_message(chat_id=user.id, text=log_and_return("create_chat_completion", user, chat_result), parse_mode=ParseMode.HTML)
+        return
+
+    bot_response = chat_result["content"]
+    logger.info(f'create_chat_completion_result: {user.first_name} with ID: {user.id}. message: {bot_response}\nToken; {chat_result["total_tokens"]}')
+
+    credit_update_result = update_user_credit_req_count(user.id, user_data["credit"], user_data["request_count"], chat_result["total_tokens"])
+    if not credit_update_result["success"]:
+        await context.bot.send_message(chat_id=user.id, text=log_and_return("update_user_credit_req_count", user, credit_update_result), parse_mode=ParseMode.HTML)
+        return
+
+    add_result = add_conversation(user.id, bot_response, "assistant")
+    if not add_result["success"]:
+        await context.bot.send_message(chat_id=user.id, text=log_and_return("add_conversation", user, add_result), parse_mode=ParseMode.HTML)
+        return
+
+    # await context.bot.send_message(chat_id=user.id, text=chat_result["content"], parse_mode=ParseMode.HTML)
+    await context.bot.send_message(chat_id=user.id, text=bot_response, parse_mode=ParseMode.HTML)

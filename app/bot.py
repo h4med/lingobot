@@ -30,7 +30,7 @@ from telegram.ext import (
 from telegram.constants import ParseMode
 
 ### app imports
-from app.modules.command_handling import start, send_typing_action, handle_new_conv_command, handle_settings_command, button
+from app.modules.command_handling import start, handle_text_message, handle_new_conv_command, handle_settings_command, button
 
 
 ### logging settings
@@ -47,10 +47,7 @@ load_dotenv()
 TG_BOT_TOKEN = os.environ['TELEGRAM_BOT_TOKEN']
 ADMIN_TG_USER_ID = os.environ['ADMIN_TG_USER_ID']
 
-@send_typing_action    
-async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Handle incoming text messages
-    pass  # Implement your code
+
 
 async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Handle incoming voice messages
