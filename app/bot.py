@@ -30,7 +30,7 @@ from telegram.ext import (
 from telegram.constants import ParseMode
 
 ### app imports
-from app.modules.command_handling import start, send_typing_action, handle_new_conv_command
+from app.modules.command_handling import start, send_typing_action, handle_new_conv_command, handle_settings_command, button
 
 
 ### logging settings
@@ -81,13 +81,13 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
         )
 
 # FIXME commands should be modified accordingly
-# async def post_init(application: Application):
-#     await application.bot.set_my_commands([
-#         BotCommand("/help", "Help"),
-#         BotCommand("/new", "New Conversation"),
-#         BotCommand("/balance", "Available credit"),
-#         BotCommand("/settings", "Settings"),
-#     ]) 
+async def post_init(application: Application):
+    await application.bot.set_my_commands([
+        # BotCommand("/help", "Help"),
+        BotCommand("/new", "New Conversation"),
+        # BotCommand("/balance", "Available credit"),
+        BotCommand("/settings", "Settings"),
+    ]) 
 
 
 def main():
@@ -95,12 +95,13 @@ def main():
         ApplicationBuilder()
         .token(os.environ['TELEGRAM_BOT_TOKEN'])
         .concurrent_updates(True)
-        # .post_init(post_init) #TODO add after post_init function defined
+        .post_init(post_init) 
         .build()
     )
 
     start_handler = CommandHandler('start', start)
     new_conv_handler = CommandHandler('new', handle_new_conv_command)
+    settings_handler = CommandHandler('settings', handle_settings_command)
     # help_handler = CommandHandler('help', get_help) # TODO add help
     # reset_handler = CommandHandler('reset', get_reset_hist) # TODO
     # balance_handler = CommandHandler('balance', get_balance) # TODO
@@ -114,7 +115,8 @@ def main():
 
     application.add_handler(start_handler)
     application.add_handler(new_conv_handler)
-    # application.add_handler(settings_handler)
+    application.add_handler(settings_handler)
+    application.add_handler(CallbackQueryHandler(button))
 
     application.add_handler(text_message_handler)
     application.add_handler(voice_handler)

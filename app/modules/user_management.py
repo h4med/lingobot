@@ -155,3 +155,36 @@ def update_user_credit_req_count(user_id, credit, req_count, usage, req_count_in
     finally:
         connection.close() 
 
+
+def update_user_settings(user_id, level, model="GPT-3.5"):
+    if not user_id or not isinstance(user_id, int) or user_id <= 0:
+        return {"success": False, "message": "Invalid input: user_id is required and must be a positive integer."}
+    if not level or not isinstance(level, int) or level <= 0:
+        return {"success": False, "message": "Invalid input: level is required and must be a positive integer."}
+    if not model or not isinstance(model, str):
+        return {"success": False, "message": "Invalid input: model is required and must be a non-empty string."}
+
+    connection = connect_to_db()
+    if connection is None:
+        return {"success": False, "message": "Database connection failed."}
+
+    try:
+        with connection.cursor() as cursor:
+            query = """
+                UPDATE lingo_users 
+                SET level = %s, model = %s 
+                WHERE user_id = %s;
+            """
+            cursor.execute(query, (level, model, user_id))
+        connection.commit()
+        return {
+            "success": True,
+            "message": "User settings updated successfully.",
+            "level": level,
+            "model": model
+        }
+    except psycopg2.Error as e:
+        connection.rollback()
+        return {"success": False, "message": f"An error occurred: {e}"}
+    finally:
+        connection.close()

@@ -4,9 +4,7 @@ import os
 from dotenv import load_dotenv
 from functools import wraps
 
-import telegram
-
-from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
+from telegram import InlineKeyboardMarkup, Update
 
 from telegram.ext import (
     Application,
@@ -18,11 +16,12 @@ from telegram.ext import (
 )
 from telegram.constants import ChatAction, ParseMode
 
-from app.modules.user_management import create_user, get_user, update_user_credit_req_count
+from app.modules.user_management import create_user, get_user, update_user_credit_req_count, update_user_settings
 from app.modules.message_processing import delete_conversations, add_conversation
 from app.modules.openai_api import create_chat_completion
 from app.messages.responses import start_message, start_message_back
-from app.messages.prompts import system_prompt
+from app.messages.prompts import system_prompt, user_new_conv_start
+from app.messages.menu import settings_main_menu, settings_level_list_menu
 from app.log_config import configure_logging
 from app.helpers.utils import check_user_status, log_and_return
 
@@ -112,7 +111,7 @@ async def handle_new_conv_command(update: Update, context: ContextTypes.DEFAULT_
 
     query = [
         {"role": "system", "content": prompt},
-        {"role": "user", "content": "Hi, what's up?"}
+        {"role": "user", "content": user_new_conv_start}
     ]
 
     chat_result = await create_chat_completion(query, max_token)
@@ -128,3 +127,67 @@ async def handle_new_conv_command(update: Update, context: ContextTypes.DEFAULT_
         return
 
     await context.bot.send_message(chat_id=user.id, text=chat_result["content"], parse_mode=ParseMode.HTML)
+    #TODO: text to speech
+
+async def handle_settings_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.edited_message or not update.message or update.message.via_bot:
+        return
+
+    user = update.effective_user
+    logger.info(f"Received New Conversation Command from User: {user.first_name} with ID: {user.id}")
+
+    user_data = get_user(user.id)
+
+    if not user_data["success"]:
+        await context.bot.send_message(chat_id=user.id, text=log_and_return("get_user", user, user_data), parse_mode=ParseMode.HTML)
+        return
+    
+    user_level=user_data["level"]
+    keyboard = settings_main_menu(user_level)
+
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await update.message.reply_text("Settings", reply_markup=reply_markup)
+
+
+async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    query = update.callback_query
+    await query.answer()
+
+    user_id = query.message.chat.id
+    user_data = get_user(user_id)
+
+    if not user_data["success"]:
+        await context.bot.send_message(chat_id=user_id, text=f'get_user Error: {user_data["message"]}', parse_mode=ParseMode.HTML)
+        return
+    
+    user_level=user_data["level"]
+
+    if query.data == 'level':
+        keyboard = settings_level_list_menu()
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text(text="Set Your Skill Level", reply_markup=reply_markup)
+    
+    elif query.data.startswith('level_'):
+        level = query.data.split('_')[1]
+        update_settings_result = update_user_settings(user_id, int(level))
+        logger.info(f"Updating level, ID: {user_id}, to: {level}")
+        if not update_settings_result["success"]:
+            logger.error(f"Error updating level, ID: {user_id}, Error: {update_settings_result['message']}")
+            await query.edit_message_text(text="Error updating level")
+            return
+        level_map = {
+            "1": "Beginner",
+            "2": "Elementary",
+            "3": "Intermediate",
+            "4": "Upper-Intermediate",
+            "5": "Advanced",
+        }
+        user_skill_level=level_map.get(level, "Intermediate")
+        keyboard = settings_main_menu(user_skill_level)
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text(text="Settings", reply_markup=reply_markup)
+
+    elif query.data == 'cancel':
+        await query.edit_message_text(text="Cancelled")   
