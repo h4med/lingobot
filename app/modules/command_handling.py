@@ -7,20 +7,15 @@ from functools import wraps
 from telegram import InlineKeyboardMarkup, Update
 
 from telegram.ext import (
-    Application,
-    CommandHandler,
-    ContextTypes,
-    ConversationHandler,
-    MessageHandler,
-    filters,
+    ContextTypes
 )
 from telegram.constants import ChatAction, ParseMode
 
 from app.modules.user_management import create_user, get_user, update_user_credit_req_count, update_user_settings
 from app.modules.message_processing import delete_conversations, init_conversations, new_msg_process
 from app.modules.openai_api import create_chat_completion, get_audio_file_transcription
+from app.modules.google_tts import google_text_to_speak
 from app.messages.responses import start_message, start_message_back
-# from app.messages.prompts import system_prompt, user_new_conv_start
 from app.messages.menu import settings_main_menu, settings_level_list_menu
 from app.log_config import configure_logging
 from app.helpers.utils import check_user_status, log_and_return
@@ -29,7 +24,6 @@ logger = configure_logging(__name__)
 
 load_dotenv()
 
-# openai.api_key = os.environ['OPENAI_API_KEY']
 max_token_chat = int(os.environ['CHATCOMPLETION_MAX_TOKEN'])
 max_token_chat_free = int(os.environ['CHATCOMPLETION_MAX_TOKEN_FREE'])
 
@@ -306,4 +300,12 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
         message_id=temp_message2_id
     )
     await context.bot.send_message(chat_id=user.id, text=new_msg_process_result["message"], parse_mode=ParseMode.HTML)
+
+    google_tts_result = await google_text_to_speak(new_msg_process_result["message"])
+    if not google_tts_result["success"]:
+        await context.bot.send_message(chat_id=user.id, text=log_and_return("google_text_to_speak", user, google_tts_result), parse_mode=ParseMode.HTML)
+        return
+
+    await context.bot.send_voice(chat_id=update.effective_chat.id, voice=google_tts_result["file_path"])
+
     return

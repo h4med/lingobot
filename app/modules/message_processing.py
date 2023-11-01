@@ -1,8 +1,5 @@
 # app/modules/message_processing.py
-# User Message Management (app/modules/message_processing.py):
-#     DONE: add_conversation(user_id, message, sent_by):
-#     DONE: get_conversations(user_id, limit=20)
-#     DONE: delete_conversations(user_id)
+
 import os
 from dotenv import load_dotenv
 import psycopg2
@@ -157,7 +154,6 @@ async def new_msg_process(user, user_data, user_msg, role="user"):
         conversations_result = get_conversations(user.id)
         conversations = conversations_result["conversations"]
 
-
     tokens_count = count_tokens(conversations)
 
     if tokens_count > max_token_summarize:
@@ -172,7 +168,6 @@ async def new_msg_process(user, user_data, user_msg, role="user"):
         return {"success": False, "message": log_and_return("create_chat_completion", user, chat_result)}
 
     bot_response = chat_result["content"]
-    # logger.info(f'create_chat_completion_result: {user.first_name} with ID: {user.id}. message: {bot_response}\nToken; {chat_result["total_tokens"]}')
 
     credit_update_result = update_user_credit_req_count(user.id, user_data["credit"], user_data["request_count"], chat_result["total_tokens"])
     if not credit_update_result["success"]:
