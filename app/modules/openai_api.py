@@ -9,7 +9,7 @@ from tenacity import (
     stop_after_attempt,
     wait_random_exponential,
     retry_if_exception_type
-)  # for exponential backoff
+) 
 
 from app.log_config import configure_logging
 from app.helpers.utils import download_audio_file
@@ -27,7 +27,7 @@ logger = configure_logging(__name__)
     retry=retry_if_exception_type(openai.error.RateLimitError),
     wait=wait_random_exponential(min=4, max=60),
     stop=stop_after_attempt(5),
-    reraise=True  # To re-raise the exception if still failing after 5 retries
+    reraise=True
 )
 async def create_chat_completion(messages_list, max_token, model="gpt-3.5-turbo-16k", temperature=0.3):
     try:

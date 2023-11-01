@@ -287,7 +287,7 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
         chat_id=user.id,
         message_id=temp_message1_id
     )
-    await context.bot.send_message(chat_id=user.id, text=f"[🗣 <gray>{user_msg}</gray>]", parse_mode=ParseMode.HTML)
+    await context.bot.send_message(chat_id=user.id, text=f"[🗣 <i>{user_msg}</i>]", parse_mode=ParseMode.HTML)
     temp_message2 = await context.bot.send_message(
         chat_id=update.effective_chat.id,
         # text="[Please wait...]"

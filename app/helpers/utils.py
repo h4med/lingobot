@@ -1,6 +1,7 @@
 import os
 from typing import Dict
 from pydub import AudioSegment
+import tempfile
 
 from dotenv import load_dotenv
 from app.log_config import configure_logging
@@ -31,18 +32,24 @@ def log_and_return(action: str, user, _result: Dict):
     logger.error(f'{action}: {user.first_name} with ID: {user.id}. Error: {message}')
     return message
 
-# async def download_audio_file(voice_file, voice_file_id):
-#     await voice_file.download_to_drive(voice_file_id + ".oga")
-#     with open(voice_file_id + ".oga", "rb") as f:
-#         voice = AudioSegment.from_ogg(f)
-
-#     voice_wav = voice.export(voice_file_id + ".wav", format="wav")        
-#     os.remove(voice_file_id + ".wav")
-#     os.remove(voice_file_id + ".oga")
-#     return voice_wav
-
 async def download_audio_file(voice_file, voice_file_id):
     try:
+        # oga_temp_file = tempfile.NamedTemporaryFile(suffix='.oga', delete=False)
+        # wav_temp_file = tempfile.NamedTemporaryFile(suffix='.wav', delete=False)
+        
+        # await voice_file.download(voice_file_id + ".oga")  # Assuming this downloads the file locally
+        
+        # with open(voice_file_id + ".oga", "rb") as f:
+        #     voice = AudioSegment.from_ogg(f)
+
+        # voice.export(wav_temp_file.name, format="wav")
+        # wav_temp_file.seek(0)
+        # voice_wav = wav_temp_file.read()
+
+        # # Cleanup temporary files
+        # os.remove(voice_file_id + ".oga")
+        # wav_temp_file.close()  # This will also delete the temporary wav file due to delete=True (default)
+
         await voice_file.download_to_drive(voice_file_id + ".oga")
 
         with open(voice_file_id + ".oga", "rb") as f:
@@ -58,6 +65,11 @@ async def download_audio_file(voice_file, voice_file_id):
             "voice_wav": voice_wav
         }
     except Exception as e:
+        # Cleanup in case of an error
+        if os.path.exists(voice_file_id + ".oga"):
+            os.remove(voice_file_id + ".oga")
+        wav_temp_file.close()  # This will also delete the temporary wav file due to delete=True (default)
+
         return {
             "success": False,
             "message": f"An error occurred: {e}"

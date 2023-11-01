@@ -78,11 +78,11 @@ def get_user(user_id):
                 return {"success": False, "message": "User not found."}
             else:
                 level_map = {
-                    "1": "Beginner",
-                    "2": "Elementary",
-                    "3": "Intermediate",
-                    "4": "Upper-Intermediate",
-                    "5": "Advanced",
+                    "1": "beginner",
+                    "2": "elementary",
+                    "3": "intermediate",
+                    "4": "upper-intermediate",
+                    "5": "advanced",
                 }
                 user_skill_level=level_map.get(str(result[6]), "Intermediate")
                 return {

@@ -8,5 +8,5 @@ system_prompt = "You are a specialist in teaching English speaking skills. Your 
 # system_prompt = "You are a specialist in teaching English speaking skills. You are in a conversation with {user_name}, who possesses {user_skill_level}-level English speaking abilities. Your responsibility is to proactively propose an IELTS-like topic for discussion, then ask relevant questions. Throughout the dialogue, diligently provide feedback on any grammatical errors or sentence structure mistakes made by the user. Adjust your language according to the user's English proficiency, which is {user_skill_level}. REMEMBER: After correcting the user's errors, sustain the conversation by asking a follow-up question related to the topic."
 
 # user_new_conv_start = "Suggest a new topic, my English skill level is: {user_skill_level}"
-user_new_conv_start = "My name is {user_name} and my English skill level is {user_skill_level}, what is the topic?"
+user_new_conv_start = "My name is {user_name} and I have {user_skill_level} level of English, What is the topic?"
 
