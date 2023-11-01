@@ -8,6 +8,7 @@ from tenacity import (
     retry,
     stop_after_attempt,
     wait_random_exponential,
+    retry_if_exception_type
 )  # for exponential backoff
 
 from app.log_config import configure_logging
@@ -22,6 +23,12 @@ logger = configure_logging(__name__)
 # https://platform.openai.com/docs/guides/rate-limits/error-mitigation
 # https://learn.microsoft.com/en-us/dotnet/architecture/microservices/implement-resilient-applications/implement-retries-exponential-backoff
 
+@retry(
+    retry=retry_if_exception_type(openai.error.RateLimitError),
+    wait=wait_random_exponential(min=4, max=60),
+    stop=stop_after_attempt(5),
+    reraise=True  # To re-raise the exception if still failing after 5 retries
+)
 async def create_chat_completion(messages_list, max_token, model="gpt-3.5-turbo-16k", temperature=0.3):
     try:
         response = await openai.ChatCompletion.acreate(
@@ -42,7 +49,11 @@ async def create_chat_completion(messages_list, max_token, model="gpt-3.5-turbo-
     
     except openai.error.RateLimitError  as e:
         logger.error(f"RateLimitError Error: {e}")
-        return {"success": False, "message": f"RateLimitError Error: {e}", "content":"Bot is Busy, please try again in a minute or two."}
+        return {
+            "success": False, 
+            "message": f"RateLimitError Error: {e}", 
+            "content":"Bot is Busy, please try again in a minute or two."
+            }
     except openai.error.InvalidRequestError as e:
         logger.error(f"InvalidRequestError Error: {e}")
         return {"success": False, "message": f"InvalidRequestError Error: {e}"}

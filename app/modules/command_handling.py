@@ -97,7 +97,8 @@ async def handle_new_conv_command(update: Update, context: ContextTypes.DEFAULT_
     
     temp_message = await context.bot.send_message(
             chat_id=update.effective_chat.id,
-            text="[Please wait...]"
+            # text="[Please wait...]"
+            text="🤔"
         )
     temp_message_id = temp_message.message_id
 
@@ -286,13 +287,14 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
         chat_id=user.id,
         message_id=temp_message1_id
     )
-    await context.bot.send_message(chat_id=user.id, text=f"[{user_msg}]", parse_mode=ParseMode.HTML)
+    await context.bot.send_message(chat_id=user.id, text=f"[🗣 <gray>{user_msg}</gray>]", parse_mode=ParseMode.HTML)
     temp_message2 = await context.bot.send_message(
         chat_id=update.effective_chat.id,
-        text="[Please wait...]"
+        # text="[Please wait...]"
+        text="🤔"
     )
     temp_message2_id = temp_message2.message_id
-    
+
     new_msg_process_result = await new_msg_process(user, user_data, user_msg, "user")
 
     if not new_msg_process_result["success"]:
