@@ -4,6 +4,12 @@ import openai
 import tiktoken
 import os
 from dotenv import load_dotenv
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_random_exponential,
+)  # for exponential backoff
+
 from app.log_config import configure_logging
 from app.helpers.utils import download_audio_file
 
@@ -67,7 +73,7 @@ async def get_audio_file_transcription(voice_file, voice_file_id, voice_file_dur
         return {"success": False, "message": f"Error: {result['message']}"}
     
     voice_wav = result['voice_wav']
-    logger.info(f'Audio received for transcription with length: {str(voice_file_duration)}')
+    logger.info(f'Audio received for transcription with length: {str(voice_file_duration)} seconds.')
 
     try:
         transcript = await openai.Audio.atranscribe(

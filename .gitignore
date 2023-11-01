@@ -17,4 +17,5 @@ Thumbs.db
 .dmypy.json
 dmypy.json
 
-TODO
+*.wav
+*.mp3

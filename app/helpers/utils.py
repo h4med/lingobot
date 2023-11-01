@@ -31,15 +31,15 @@ def log_and_return(action: str, user, _result: Dict):
     logger.error(f'{action}: {user.first_name} with ID: {user.id}. Error: {message}')
     return message
 
-async def download_audio_file(voice_file, voice_file_id):
-    await voice_file.download_to_drive(voice_file_id + ".oga")
-    with open(voice_file_id + ".oga", "rb") as f:
-        voice = AudioSegment.from_ogg(f)
+# async def download_audio_file(voice_file, voice_file_id):
+#     await voice_file.download_to_drive(voice_file_id + ".oga")
+#     with open(voice_file_id + ".oga", "rb") as f:
+#         voice = AudioSegment.from_ogg(f)
 
-    voice_wav = voice.export(voice_file_id + ".wav", format="wav")        
-    os.remove(voice_file_id + ".wav")
-    os.remove(voice_file_id + ".oga")
-    return voice_wav
+#     voice_wav = voice.export(voice_file_id + ".wav", format="wav")        
+#     os.remove(voice_file_id + ".wav")
+#     os.remove(voice_file_id + ".oga")
+#     return voice_wav
 
 async def download_audio_file(voice_file, voice_file_id):
     try:
@@ -50,6 +50,7 @@ async def download_audio_file(voice_file, voice_file_id):
         voice_wav = voice.export(voice_file_id + ".wav", format="wav")
         
         os.remove(voice_file_id + ".oga")
+        os.remove(voice_file_id + ".wav")
 
         return {
             "success": True,

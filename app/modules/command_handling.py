@@ -264,11 +264,11 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
         await context.bot.send_message(chat_id=user.id, text=log_and_return("check_user_status", user, status_result), parse_mode=ParseMode.HTML)
         return    
 
-    temp_message = await context.bot.send_message(
+    temp_message1 = await context.bot.send_message(
         chat_id=update.effective_chat.id,
         text="[Transcribing, please wait...]"
     )
-    temp_message_id = temp_message.message_id
+    temp_message1_id = temp_message1.message_id
 
     file_id = update.message.voice.file_id
     duration  = update.message.voice.duration
@@ -282,16 +282,26 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
     user_msg = get_transcription_result["content"]
     user_msg = user_msg.strip()
 
+    await context.bot.delete_message(
+        chat_id=user.id,
+        message_id=temp_message1_id
+    )
+    await context.bot.send_message(chat_id=user.id, text=f"[{user_msg}]", parse_mode=ParseMode.HTML)
+    temp_message2 = await context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text="[Please wait...]"
+    )
+    temp_message2_id = temp_message2.message_id
+    
     new_msg_process_result = await new_msg_process(user, user_data, user_msg, "user")
 
     if not new_msg_process_result["success"]:
         await context.bot.send_message(chat_id=user.id, text=log_and_return("new_msg_process", user, new_msg_process_result), parse_mode=ParseMode.HTML)
         return
 
-
     await context.bot.delete_message(
         chat_id=user.id,
-        message_id=temp_message_id
+        message_id=temp_message2_id
     )
     await context.bot.send_message(chat_id=user.id, text=new_msg_process_result["message"], parse_mode=ParseMode.HTML)
     return
