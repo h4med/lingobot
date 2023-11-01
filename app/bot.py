@@ -30,7 +30,7 @@ from telegram.ext import (
 from telegram.constants import ParseMode
 
 ### app imports
-from app.modules.command_handling import start, handle_text_message, handle_new_conv_command, handle_settings_command, button
+from app.modules.command_handling import start, handle_text_message, handle_new_conv_command, handle_voice_message, handle_settings_command, button
 
 
 ### logging settings
@@ -46,12 +46,6 @@ load_dotenv()
 # openai.api_key = os.environ['OPENAI_API_KEY']
 TG_BOT_TOKEN = os.environ['TELEGRAM_BOT_TOKEN']
 ADMIN_TG_USER_ID = os.environ['ADMIN_TG_USER_ID']
-
-
-
-async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Handle incoming voice messages
-    pass  # Implement your code
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
 

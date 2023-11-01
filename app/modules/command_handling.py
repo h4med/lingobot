@@ -17,10 +17,10 @@ from telegram.ext import (
 from telegram.constants import ChatAction, ParseMode
 
 from app.modules.user_management import create_user, get_user, update_user_credit_req_count, update_user_settings
-from app.modules.message_processing import delete_conversations, add_conversation, get_conversations
-from app.modules.openai_api import create_chat_completion, count_tokens
+from app.modules.message_processing import delete_conversations, init_conversations, new_msg_process
+from app.modules.openai_api import create_chat_completion, get_audio_file_transcription
 from app.messages.responses import start_message, start_message_back
-from app.messages.prompts import system_prompt, user_new_conv_start
+# from app.messages.prompts import system_prompt, user_new_conv_start
 from app.messages.menu import settings_main_menu, settings_level_list_menu
 from app.log_config import configure_logging
 from app.helpers.utils import check_user_status, log_and_return
@@ -94,25 +94,25 @@ async def handle_new_conv_command(update: Update, context: ContextTypes.DEFAULT_
     if not status_result["success"]:
         await context.bot.send_message(chat_id=user.id, text=log_and_return("check_user_status", user, status_result), parse_mode=ParseMode.HTML)
         return
+    
+    temp_message = await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text="[Please wait...]"
+        )
+    temp_message_id = temp_message.message_id
 
     deletion_result = delete_conversations(user.id)
     if not deletion_result["success"]:
         await context.bot.send_message(chat_id=user.id, text=log_and_return("delete_conversations", user, deletion_result), parse_mode=ParseMode.HTML)
         return
-
-    prompt = system_prompt.format(user_name=user_data["first_name"], user_skill_level=user_data["level"])
-
-    add_result = add_conversation(user.id, prompt, "system")
-    if not add_result["success"]:
-        await context.bot.send_message(chat_id=user.id, text=log_and_return("add_conversation", user, add_result), parse_mode=ParseMode.HTML)
+    
+    init_conversations_result = init_conversations(user, user_data)
+    if not init_conversations_result["success"]:
+        await context.bot.send_message(chat_id=user.id, text=log_and_return("init_conversations", user, init_conversations_result), parse_mode=ParseMode.HTML)
         return
 
-    max_token = max_token_chat_free if user_data["status"] == 'zer' else max_token_chat
-
-    query = [
-        {"role": "system", "content": prompt},
-        {"role": "user", "content": user_new_conv_start}
-    ]
+    max_token = init_conversations_result["max_token"]
+    query = init_conversations_result["query"]
 
     chat_result = await create_chat_completion(query, max_token)
     if not chat_result["success"]:
@@ -125,6 +125,11 @@ async def handle_new_conv_command(update: Update, context: ContextTypes.DEFAULT_
     if not credit_update_result["success"]:
         await context.bot.send_message(chat_id=user.id, text=log_and_return("update_user_credit_req_count", user, credit_update_result), parse_mode=ParseMode.HTML)
         return
+
+    await context.bot.delete_message(
+        chat_id=user.id,
+        message_id=temp_message_id
+    )
 
     await context.bot.send_message(chat_id=user.id, text=chat_result["content"], parse_mode=ParseMode.HTML)
     #TODO: text to speech
@@ -148,7 +153,6 @@ async def handle_settings_command(update: Update, context: ContextTypes.DEFAULT_
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     await update.message.reply_text("Settings", reply_markup=reply_markup)
-
 
 async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -214,45 +218,80 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         await context.bot.send_message(chat_id=user.id, text=log_and_return("check_user_status", user, status_result), parse_mode=ParseMode.HTML)
         return
     
-    user_text = update.message.text
-    user_text = user_text.strip()
+    temp_message = await context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text="[Please wait...]"
+    )
+    temp_message_id = temp_message.message_id    
 
-    add_result = add_conversation(user.id, user_text, "user")
-    if not add_result["success"]:
-        await context.bot.send_message(chat_id=user.id, text=log_and_return("add_conversation", user, add_result), parse_mode=ParseMode.HTML)
+    user_msg = update.message.text
+    user_msg = user_msg.strip()
+
+    new_msg_process_result = await new_msg_process(user, user_data, user_msg, "user")
+
+    if not new_msg_process_result["success"]:
+        await context.bot.send_message(chat_id=user.id, text=log_and_return("new_msg_process", user, new_msg_process_result), parse_mode=ParseMode.HTML)
+        return
+
+    await context.bot.delete_message(
+        chat_id=user.id,
+        message_id=temp_message_id
+    )
+    
+    await context.bot.send_message(chat_id=user.id, text=new_msg_process_result["message"], parse_mode=ParseMode.HTML)
+    return
+
+@send_voice_action
+async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.edited_message or not update.message or update.message.via_bot:
         return
     
-    conversations_result = get_conversations(user.id)
-    if not conversations_result["success"]:
-        await context.bot.send_message(chat_id=user.id, text=log_and_return("get_conversations", user, conversations_result), parse_mode=ParseMode.HTML)
-        return
-    #FIXME: check if there is no system promp then add it
-    #TODO: Add summary = await summarize_user_conversations(user.id)
-    # logger.info(f'conversations_result: {conversations_result["conversations"]}')
-    tokens_count = count_tokens(conversations_result["conversations"])
-    # logger.info(f'tokens_count: {tokens_count}')
+    user = update.effective_user
+    logger.info(f"Received New Voice Message User: {user.first_name} with ID: {user.id}")
 
-    max_token = max_token_chat_free if user_data["status"] == 'zer' else max_token_chat
+    user_data = get_user(user.id)
 
-    query = conversations_result["conversations"]
-
-    chat_result = await create_chat_completion(query, max_token)
-    if not chat_result["success"]:
-        await context.bot.send_message(chat_id=user.id, text=log_and_return("create_chat_completion", user, chat_result), parse_mode=ParseMode.HTML)
+    if not user_data["success"]:
+        await context.bot.send_message(chat_id=user.id, text=log_and_return("get_user", user, user_data), parse_mode=ParseMode.HTML)
         return
 
-    bot_response = chat_result["content"]
-    logger.info(f'create_chat_completion_result: {user.first_name} with ID: {user.id}. message: {bot_response}\nToken; {chat_result["total_tokens"]}')
+    status_result = check_user_status(
+        user_status=user_data["status"],
+        is_bot=user_data["is_bot"],
+        req_count=user_data["request_count"]
+    )
+    if not status_result["success"]:
+        await context.bot.send_message(chat_id=user.id, text=log_and_return("check_user_status", user, status_result), parse_mode=ParseMode.HTML)
+        return    
 
-    credit_update_result = update_user_credit_req_count(user.id, user_data["credit"], user_data["request_count"], chat_result["total_tokens"])
-    if not credit_update_result["success"]:
-        await context.bot.send_message(chat_id=user.id, text=log_and_return("update_user_credit_req_count", user, credit_update_result), parse_mode=ParseMode.HTML)
+    temp_message = await context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text="[Transcribing, please wait...]"
+    )
+    temp_message_id = temp_message.message_id
+
+    file_id = update.message.voice.file_id
+    duration  = update.message.voice.duration
+    voice_file =  await context.bot.get_file(file_id, read_timeout=30)
+
+    get_transcription_result = await get_audio_file_transcription(voice_file, file_id, duration)
+    if not get_transcription_result["success"]:
+        await context.bot.send_message(chat_id=user.id, text=log_and_return("get_transcription_result", user, user_data), parse_mode=ParseMode.HTML)
+        return
+    
+    user_msg = get_transcription_result["content"]
+    user_msg = user_msg.strip()
+
+    new_msg_process_result = await new_msg_process(user, user_data, user_msg, "user")
+
+    if not new_msg_process_result["success"]:
+        await context.bot.send_message(chat_id=user.id, text=log_and_return("new_msg_process", user, new_msg_process_result), parse_mode=ParseMode.HTML)
         return
 
-    add_result = add_conversation(user.id, bot_response, "assistant")
-    if not add_result["success"]:
-        await context.bot.send_message(chat_id=user.id, text=log_and_return("add_conversation", user, add_result), parse_mode=ParseMode.HTML)
-        return
 
-    # await context.bot.send_message(chat_id=user.id, text=chat_result["content"], parse_mode=ParseMode.HTML)
-    await context.bot.send_message(chat_id=user.id, text=bot_response, parse_mode=ParseMode.HTML)
+    await context.bot.delete_message(
+        chat_id=user.id,
+        message_id=temp_message_id
+    )
+    await context.bot.send_message(chat_id=user.id, text=new_msg_process_result["message"], parse_mode=ParseMode.HTML)
+    return
