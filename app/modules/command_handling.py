@@ -18,7 +18,7 @@ from app.modules.google_tts import google_text_to_speak
 from app.messages.responses import start_message, start_message_back
 from app.messages.menu import settings_main_menu, settings_level_list_menu
 from app.log_config import configure_logging
-from app.helpers.utils import check_user_status, log_and_return
+from app.helpers.utils import check_user_status, log_and_return, send_temp_message, delete_message
 
 logger = configure_logging(__name__)
 
@@ -66,6 +66,35 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode=ParseMode.HTML
         )
 
+async def handle_credit_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user 
+    logger.info(f'Received /credit first_name: {user.first_name}')
+
+    user_data = get_user(user.id)
+
+    if not user_data["success"]:
+        await context.bot.send_message(chat_id=user.id, text=log_and_return("get_user", user, user_data), parse_mode=ParseMode.HTML)
+        return
+    
+    first_name = user_data["first_name"]
+    status = user_data["status"]
+    credit = user_data["credit"]
+    request_count = user_data["request_count"]
+    
+    text = f"""Dear <b>{first_name}</b>,
+
+Credit: {credit}
+Request Count: {request_count}
+Status: {status}
+
+@ChatGPTSpeackBot
+    """
+    await context.bot.send_message(
+    chat_id=update.effective_chat.id, 
+    text=text,
+    parse_mode=ParseMode.HTML
+    )
+        
 @send_typing_action
 async def handle_new_conv_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.edited_message or not update.message or update.message.via_bot:
@@ -89,12 +118,7 @@ async def handle_new_conv_command(update: Update, context: ContextTypes.DEFAULT_
         await context.bot.send_message(chat_id=user.id, text=log_and_return("check_user_status", user, status_result), parse_mode=ParseMode.HTML)
         return
     
-    temp_message = await context.bot.send_message(
-            chat_id=update.effective_chat.id,
-            # text="[Please wait...]"
-            text="🤔"
-        )
-    temp_message_id = temp_message.message_id
+    processing_messge_id = await send_temp_message(update, context, text="[Please wait...]")
 
     deletion_result = delete_conversations(user.id)
     if not deletion_result["success"]:
@@ -109,25 +133,28 @@ async def handle_new_conv_command(update: Update, context: ContextTypes.DEFAULT_
     max_token = init_conversations_result["max_token"]
     query = init_conversations_result["query"]
 
-    chat_result = await create_chat_completion(query, max_token)
+    chat_result = await create_chat_completion(query, max_token, "gpt-3.5-turbo-16k", 0.7)
     if not chat_result["success"]:
         await context.bot.send_message(chat_id=user.id, text=log_and_return("create_chat_completion", user, chat_result), parse_mode=ParseMode.HTML)
         return
-
-    # logger.info(f'create_chat_completion_result: {user.first_name} with ID: {user.id}. message: {chat_result["content"]}\nToken; {chat_result["total_tokens"]}')
 
     credit_update_result = update_user_credit_req_count(user.id, user_data["credit"], user_data["request_count"], chat_result["total_tokens"])
     if not credit_update_result["success"]:
         await context.bot.send_message(chat_id=user.id, text=log_and_return("update_user_credit_req_count", user, credit_update_result), parse_mode=ParseMode.HTML)
         return
 
-    await context.bot.delete_message(
-        chat_id=user.id,
-        message_id=temp_message_id
-    )
+    await delete_message(update, context, message_id=processing_messge_id)
 
     await context.bot.send_message(chat_id=user.id, text=chat_result["content"], parse_mode=ParseMode.HTML)
-    #TODO: text to speech
+
+    google_tts_result = await google_text_to_speak(chat_result["content"])
+    if not google_tts_result["success"]:
+        await context.bot.send_message(chat_id=user.id, text=log_and_return("google_text_to_speak", user, google_tts_result), parse_mode=ParseMode.HTML)
+        return
+
+    await context.bot.send_voice(chat_id=update.effective_chat.id, voice=google_tts_result["file_path"])
+
+    return
 
 async def handle_settings_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.edited_message or not update.message or update.message.via_bot:
@@ -213,11 +240,7 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         await context.bot.send_message(chat_id=user.id, text=log_and_return("check_user_status", user, status_result), parse_mode=ParseMode.HTML)
         return
     
-    temp_message = await context.bot.send_message(
-        chat_id=update.effective_chat.id,
-        text="[Please wait...]"
-    )
-    temp_message_id = temp_message.message_id    
+    processing_messge_id = await send_temp_message(update, context, text="[Processing...]") 
 
     user_msg = update.message.text
     user_msg = user_msg.strip()
@@ -230,10 +253,18 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     await context.bot.delete_message(
         chat_id=user.id,
-        message_id=temp_message_id
+        message_id=processing_messge_id
     )
     
     await context.bot.send_message(chat_id=user.id, text=new_msg_process_result["message"], parse_mode=ParseMode.HTML)
+
+    google_tts_result = await google_text_to_speak(new_msg_process_result["message"])
+    if not google_tts_result["success"]:
+        await context.bot.send_message(chat_id=user.id, text=log_and_return("google_text_to_speak", user, google_tts_result), parse_mode=ParseMode.HTML)
+        return
+
+    await context.bot.send_voice(chat_id=update.effective_chat.id, voice=google_tts_result["file_path"])
+
     return
 
 @send_voice_action
@@ -259,11 +290,7 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
         await context.bot.send_message(chat_id=user.id, text=log_and_return("check_user_status", user, status_result), parse_mode=ParseMode.HTML)
         return    
 
-    temp_message1 = await context.bot.send_message(
-        chat_id=update.effective_chat.id,
-        text="[Transcribing, please wait...]"
-    )
-    temp_message1_id = temp_message1.message_id
+    transcribing_messge_id = await send_temp_message(update, context, text="[Transcribing, please wait...]") 
 
     file_id = update.message.voice.file_id
     duration  = update.message.voice.duration
@@ -277,17 +304,11 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
     user_msg = get_transcription_result["content"]
     user_msg = user_msg.strip()
 
-    await context.bot.delete_message(
-        chat_id=user.id,
-        message_id=temp_message1_id
-    )
+    await delete_message(update, context, message_id=transcribing_messge_id)
+
     await context.bot.send_message(chat_id=user.id, text=f"[🗣 <i>{user_msg}</i>]", parse_mode=ParseMode.HTML)
-    temp_message2 = await context.bot.send_message(
-        chat_id=update.effective_chat.id,
-        # text="[Please wait...]"
-        text="🤔"
-    )
-    temp_message2_id = temp_message2.message_id
+    
+    processing_messge_id = await send_temp_message(update, context, text="[Processing...]") 
 
     new_msg_process_result = await new_msg_process(user, user_data, user_msg, "user")
 
@@ -295,10 +316,8 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
         await context.bot.send_message(chat_id=user.id, text=log_and_return("new_msg_process", user, new_msg_process_result), parse_mode=ParseMode.HTML)
         return
 
-    await context.bot.delete_message(
-        chat_id=user.id,
-        message_id=temp_message2_id
-    )
+    await delete_message(update, context, message_id=processing_messge_id)
+
     await context.bot.send_message(chat_id=user.id, text=new_msg_process_result["message"], parse_mode=ParseMode.HTML)
 
     google_tts_result = await google_text_to_speak(new_msg_process_result["message"])
@@ -309,3 +328,5 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
     await context.bot.send_voice(chat_id=update.effective_chat.id, voice=google_tts_result["file_path"])
 
     return
+
+

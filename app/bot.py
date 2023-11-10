@@ -30,7 +30,15 @@ from telegram.ext import (
 from telegram.constants import ParseMode
 
 ### app imports
-from app.modules.command_handling import start, handle_text_message, handle_new_conv_command, handle_voice_message, handle_settings_command, button
+from app.modules.command_handling import (
+    start, 
+    handle_text_message, 
+    handle_new_conv_command, 
+    handle_voice_message, 
+    handle_settings_command, 
+    handle_credit_command,
+    button
+)
 
 
 ### logging settings
@@ -75,8 +83,8 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
 async def post_init(application: Application):
     await application.bot.set_my_commands([
         # BotCommand("/help", "Help"),
-        BotCommand("/new", "New Conversation"),
-        # BotCommand("/balance", "Available credit"),
+        BotCommand("/new", "New Topic"),
+        BotCommand("/credit", "My Credit"),
         BotCommand("/settings", "Settings"),
     ]) 
 
@@ -95,7 +103,7 @@ def main():
     settings_handler = CommandHandler('settings', handle_settings_command)
     # help_handler = CommandHandler('help', get_help) # TODO add help
     # reset_handler = CommandHandler('reset', get_reset_hist) # TODO
-    # balance_handler = CommandHandler('balance', get_balance) # TODO
+    credit_handler = CommandHandler('credit',  handle_credit_command)
     # settings_handler = CommandHandler('settings', settings_callback)
 
     text_message_handler = MessageHandler(
@@ -106,6 +114,7 @@ def main():
 
     application.add_handler(start_handler)
     application.add_handler(new_conv_handler)
+    application.add_handler(credit_handler)
     application.add_handler(settings_handler)
     application.add_handler(CallbackQueryHandler(button))
 

@@ -13,6 +13,21 @@ logger = configure_logging(__name__)
 daily_quota_free = int(os.environ['DAILY_QUOTA_FREE'])
 daily_quota_max = int(os.environ['DAILY_QUOTA_MAX'])
 
+from telegram import Update, Message
+from telegram.ext import ContextTypes
+
+async def send_temp_message(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str = "[Processing...]") -> int:
+    temp_message = await context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text=text
+    )
+    return temp_message.message_id
+
+async def delete_message(update: Update, context: ContextTypes.DEFAULT_TYPE, message_id: int):
+    await context.bot.delete_message(
+        chat_id=update.effective_chat.id,
+        message_id=message_id
+    )
 
 def check_user_status(user_status, is_bot, req_count):
 
@@ -34,22 +49,6 @@ def log_and_return(action: str, user, _result: Dict):
 
 async def download_audio_file(voice_file, voice_file_id):
     try:
-        # oga_temp_file = tempfile.NamedTemporaryFile(suffix='.oga', delete=False)
-        # wav_temp_file = tempfile.NamedTemporaryFile(suffix='.wav', delete=False)
-        
-        # await voice_file.download(voice_file_id + ".oga")  # Assuming this downloads the file locally
-        
-        # with open(voice_file_id + ".oga", "rb") as f:
-        #     voice = AudioSegment.from_ogg(f)
-
-        # voice.export(wav_temp_file.name, format="wav")
-        # wav_temp_file.seek(0)
-        # voice_wav = wav_temp_file.read()
-
-        # # Cleanup temporary files
-        # os.remove(voice_file_id + ".oga")
-        # wav_temp_file.close()  # This will also delete the temporary wav file due to delete=True (default)
-
         await voice_file.download_to_drive(voice_file_id + ".oga")
 
         with open(voice_file_id + ".oga", "rb") as f:
@@ -65,11 +64,8 @@ async def download_audio_file(voice_file, voice_file_id):
             "voice_wav": voice_wav
         }
     except Exception as e:
-        # Cleanup in case of an error
         if os.path.exists(voice_file_id + ".oga"):
             os.remove(voice_file_id + ".oga")
-        wav_temp_file.close()  # This will also delete the temporary wav file due to delete=True (default)
-
         return {
             "success": False,
             "message": f"An error occurred: {e}"

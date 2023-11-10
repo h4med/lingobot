@@ -29,15 +29,17 @@ logger = configure_logging(__name__)
     stop=stop_after_attempt(5),
     reraise=True
 )
-async def create_chat_completion(messages_list, max_token, model="gpt-3.5-turbo-16k", temperature=0.3):
+async def create_chat_completion(messages_list, max_token, response_format = "text", model="gpt-3.5-turbo-16k", temperature=0.3):
     try:
+        logger.info("Starting OpenAI ChatCompletion...")
         response = await openai.ChatCompletion.acreate(
             model=model,
+            max_tokens=max_token,
+            response_format= { "type": response_format },
             messages=messages_list,
-            temperature=temperature,
-            max_tokens=max_token
+            temperature=temperature
         )
-        logger.info(f"openai ChatCompletion done with total tokens: {response['usage']['total_tokens']}")
+        logger.info(f"OpenAI ChatCompletion done with total tokens: {response['usage']['total_tokens']}")
         return {
                     "success": True, 
                     "message": "Response received.", 
@@ -90,8 +92,7 @@ async def get_audio_file_transcription(voice_file, voice_file_id, voice_file_dur
         transcript = await openai.Audio.atranscribe(
             model="whisper-1", 
             file=voice_wav,
-            language=lang,
-            # temperature=0.3
+            language=lang
             )
         transcription = transcript["text"]
         logger.info(f"openai atranscribe done with transcription length of: {len(transcription)}")
@@ -110,6 +111,5 @@ async def get_audio_file_transcription(voice_file, voice_file_id, voice_file_dur
     except Exception as e:
         logger.error(f"Exception Error: {e}")
         return {"success": False, "message": f"An Exception occurred: {e}"}
-    
 
     return 
