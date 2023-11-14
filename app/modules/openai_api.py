@@ -29,13 +29,13 @@ logger = configure_logging(__name__)
     stop=stop_after_attempt(5),
     reraise=True
 )
-async def create_chat_completion(messages_list, max_token, response_format = "text", model="gpt-3.5-turbo-16k", temperature=0.3):
+async def create_chat_completion(messages_list, max_token, response_format = "text", model="gpt-3.5-turbo-1106", temperature=0.3):
     try:
         logger.info("Starting OpenAI ChatCompletion...")
         response = await openai.ChatCompletion.acreate(
             model=model,
             max_tokens=max_token,
-            response_format= { "type": response_format },
+            response_format={ "type": response_format },
             messages=messages_list,
             temperature=temperature
         )

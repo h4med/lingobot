@@ -12,7 +12,7 @@ from telegram.ext import (
 from telegram.constants import ChatAction, ParseMode
 
 from app.modules.user_management import create_user, get_user, update_user_credit_req_count, update_user_settings
-from app.modules.message_processing import delete_conversations, init_conversations, new_msg_process
+from app.modules.message_processing import delete_conversations, init_conversations, new_msg_process, format_feedback, remove_html_tags
 from app.modules.openai_api import create_chat_completion, get_audio_file_transcription
 from app.modules.google_tts import google_text_to_speak
 from app.messages.responses import start_message, start_message_back
@@ -133,7 +133,7 @@ async def handle_new_conv_command(update: Update, context: ContextTypes.DEFAULT_
     max_token = init_conversations_result["max_token"]
     query = init_conversations_result["query"]
 
-    chat_result = await create_chat_completion(query, max_token, "gpt-3.5-turbo-16k", 0.7)
+    chat_result = await create_chat_completion(query, max_token, "json_object", "gpt-3.5-turbo-1106", 0.7)
     if not chat_result["success"]:
         await context.bot.send_message(chat_id=user.id, text=log_and_return("create_chat_completion", user, chat_result), parse_mode=ParseMode.HTML)
         return
@@ -145,7 +145,16 @@ async def handle_new_conv_command(update: Update, context: ContextTypes.DEFAULT_
 
     await delete_message(update, context, message_id=processing_messge_id)
 
-    await context.bot.send_message(chat_id=user.id, text=chat_result["content"], parse_mode=ParseMode.HTML)
+    formatted_text = format_feedback(chat_result["content"])
+    if not formatted_text["success"]:
+        await context.bot.send_message(chat_id=user.id, text=log_and_return("formatted_text", user, formatted_text), parse_mode=ParseMode.HTML)
+        return
+
+    await context.bot.send_message(chat_id=user.id, text=formatted_text["message"], parse_mode=ParseMode.HTML)
+
+    # text_for_tts = remove_html_tags(formatted_text["message"])
+
+    # logger.info(f'formatted_text: {formatted_text["message"]}\ntext_for_tts: {text_for_tts}')
 
     google_tts_result = await google_text_to_speak(chat_result["content"])
     if not google_tts_result["success"]:
@@ -320,7 +329,9 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
 
     await context.bot.send_message(chat_id=user.id, text=new_msg_process_result["message"], parse_mode=ParseMode.HTML)
 
-    google_tts_result = await google_text_to_speak(new_msg_process_result["message"])
+    # print(new_msg_process_result["message"])
+    # print(remove_html_tags(new_msg_process_result["message"]))
+    google_tts_result = await google_text_to_speak(remove_html_tags(new_msg_process_result["message"]))
     if not google_tts_result["success"]:
         await context.bot.send_message(chat_id=user.id, text=log_and_return("google_text_to_speak", user, google_tts_result), parse_mode=ParseMode.HTML)
         return

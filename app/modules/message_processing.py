@@ -1,6 +1,8 @@
 # app/modules/message_processing.py
 
 import os
+import json
+import re
 from dotenv import load_dotenv
 import psycopg2
 from app.db_manager import connect_to_db
@@ -163,11 +165,18 @@ async def new_msg_process(user, user_data, user_msg, role="user"):
 
     max_token = max_token_chat_free if user_data["status"] == 'zer' else max_token_chat
 
-    chat_result = await create_chat_completion(conversations, max_token)
+    chat_result = await create_chat_completion(conversations, max_token, "json_object", "gpt-3.5-turbo-1106", 0.7)
     if not chat_result["success"]:
         return {"success": False, "message": log_and_return("create_chat_completion", user, chat_result)}
 
-    bot_response = chat_result["content"]
+    logger.info(f'chat_result: {chat_result["content"]}')
+
+    formatted_text = format_feedback(chat_result["content"])
+    logger.info(f'formatted_text: {formatted_text["message"]}')
+    if not formatted_text["success"]:
+        return {"success": False, "message": log_and_return("formatted_text", user, formatted_text)}
+    
+    bot_response = formatted_text["message"]
 
     credit_update_result = update_user_credit_req_count(user.id, user_data["credit"], user_data["request_count"], chat_result["total_tokens"])
     if not credit_update_result["success"]:
@@ -178,3 +187,47 @@ async def new_msg_process(user, user_data, user_msg, role="user"):
         return {"success": False, "message": log_and_return("add_conversation", user, add_result)}
 
     return {"success": True, "message": bot_response}
+
+# def format_feedback(input_json):
+#     try:
+#         data = json.loads(input_json)
+#     except json.JSONDecodeError:
+#         return {"success": False, "message": "Invalid JSON input."}
+
+#     formatted_text = ""
+#     for key, value in data.items():
+#         formatted_text += f"<b>{key.capitalize()}:</b>\n{value}\n\n"
+
+#     return {"success": True, "message": formatted_text}
+
+def format_feedback(input_json):
+    try:
+        data = json.loads(input_json)
+    except json.JSONDecodeError:
+        return {"success": False, "message": "Invalid JSON input."}
+
+    text = ""
+    
+    if data.get("topic"):
+        text += "<b>topic</b>:\n{}\n\n".format(data["topic"])
+
+    if data.get("feedback"):
+        text += "<b>feedback</b>:\n{}\n\n".format(data["feedback"])
+
+    # Check if 'mistakes' and 'corrections' keys exist and have content
+    if "mistakes" in data and "corrections" in data and data["mistakes"] and data["corrections"]:
+        for mistake, correction in zip(data["mistakes"], data["corrections"]):
+            text += "Instead of:\n\"{}\"\nYou should say:\n\"{}\"\n\n".format(mistake.strip('.'), correction.strip('.'))
+        text += "\n"
+    
+    # Check if 'follow-up' key exists and is not empty
+    if data.get("follow-up"):
+        text += "<b>follow-up question</b>:\n{}".format(data["follow-up"])
+
+
+    return {"success": True, "message": text.strip()}
+
+
+def remove_html_tags(text):
+    clean = re.compile('<.*?>')
+    return re.sub(clean, '', text)

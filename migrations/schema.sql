@@ -20,7 +20,7 @@ CREATE TABLE lingo_users (
 	first_name character varying(255) NOT NULL,
     last_name character varying(255),
     username character varying(255),
-    credit integer DEFAULT 50000,
+    credit integer DEFAULT 20000,
     joined_at timestamp without time zone,
     last_interaction  timestamp without time zone,
     status user_status_enum DEFAULT 'ena'::user_status_enum NOT NULL,
